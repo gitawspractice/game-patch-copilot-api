@@ -9,7 +9,7 @@ app = FastAPI(title="Game Patch Copilot API")
 
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    # later: "https://your-app.vercel.app",
+    "https://game-patch-copilot-web.vercel.app",
 ]
 
 app.add_middleware(
