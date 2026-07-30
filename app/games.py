@@ -2,7 +2,8 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+# Go up from: app/games.py -> app -> repo_root
+BASE_DIR = Path(__file__).resolve().parent.parent
 GAMES_PATH = BASE_DIR / "config" / "games.json"
 
 def load_games() -> List[Dict[str, Any]]:

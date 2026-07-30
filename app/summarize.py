@@ -14,10 +14,15 @@ def _call_llm(prompt: str) -> str:
             )
             resp.raise_for_status()
             return resp.json().get("text", "")
+    # Fallback dummy response for local dev without LLM
     return f"[LLM response for prompt of length {len(prompt)}]"
 
-def _parse_json_from_llm(text: str) -> Dict[str, Any]:
-    return json_lib.loads(text)
+def _parse_json_from_llm(text: str, fallback: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        return json_lib.loads(text)
+    except Exception:
+        # If LLM output is not valid JSON (e.g., dummy text), use fallback
+        return fallback
 
 def build_tldr_prompt(game: Dict[str, Any], text: str, custom_instructions: str | None) -> str:
     focus = ", ".join(game["focus_areas"])
@@ -57,23 +62,36 @@ def summarize_patch(game_id: str, text: str, custom_instructions: str | None):
     if not game:
         game = get_game_profile("generic")
 
+    # TL;DR (free-form bullets, no JSON parsing)
     tldr_prompt = build_tldr_prompt(game, text, custom_instructions)
     tldr_raw = _call_llm(tldr_prompt)
     tl_dr = [line.strip("- ").strip() for line in tldr_raw.splitlines() if line.strip()]
 
+    # Categorized
     cat_prompt = build_categorize_prompt(game, text)
     cat_raw = _call_llm(cat_prompt)
-    categorized = _parse_json_from_llm(cat_raw)
+    categorized = _parse_json_from_llm(
+        cat_raw,
+        fallback={"buffs": [], "nerfs": [], "bug_fixes": [], "new_content": [], "qol": []},
+    )
 
+    # Things to recheck
     recheck_prompt = build_recheck_prompt(game, text)
     recheck_raw = _call_llm(recheck_prompt)
-    recheck = _parse_json_from_llm(recheck_raw)
+    recheck = _parse_json_from_llm(
+        recheck_raw,
+        fallback={"things_to_recheck": [], "meta_impact_notes": []},
+    )
     things_to_recheck = recheck.get("things_to_recheck", [])
     meta_impact_notes = recheck.get("meta_impact_notes", [])
 
+    # Impact score
     score_prompt = build_impact_score_prompt(game, text)
     score_raw = _call_llm(score_prompt)
-    score_data = _parse_json_from_llm(score_raw)
+    score_data = _parse_json_from_llm(
+        score_raw,
+        fallback={"score": 3, "reason": "No LLM configured; using default score."},
+    )
     impact_score = int(score_data.get("score", 3))
     impact_reason = str(score_data.get("reason", ""))
 
