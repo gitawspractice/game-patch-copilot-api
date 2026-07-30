@@ -1,0 +1,44 @@
+[
+  {
+    "id": "poe2",
+    "name": "Path of Exile 2",
+    "official_patch_url": "https://www.pathofexile.com/forum/view-thread/...",
+    "focus_areas": [
+      "skills",
+      "gems",
+      "passives",
+      "ascendancies",
+      "items",
+      "atlas_endgame",
+      "bosses"
+    ],
+    "llm_instructions": "Focus on changes that affect character builds, skill links, item budgets, ascendancies, and Atlas/endgame strategies."
+  },
+  {
+    "id": "lol",
+    "name": "League of Legends",
+    "official_patch_url": "https://www.leagueoflegends.com/en-us/news/game-updates/patch/",
+    "focus_areas": [
+      "champions",
+      "items",
+      "runes",
+      "jungle",
+      "objectives",
+      "modes"
+    ],
+    "llm_instructions": "Focus on champion buffs/nerfs, item changes, jungle/objective updates, and ranked/meta impact."
+  },
+  {
+    "id": "generic",
+    "name": "Generic / Other",
+    "official_patch_url": "",
+    "focus_areas": [
+      "gameplay",
+      "balance",
+      "bugs",
+      "new content",
+      "quality of life"
+    ],
+    "llm_instructions": "Produce a general TL;DR, categorize changes, and highlight anything that might affect builds, strategies, or player experience."
+  }
+]
