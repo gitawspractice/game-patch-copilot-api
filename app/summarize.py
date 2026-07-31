@@ -2,8 +2,11 @@ from typing import Dict, Any, List
 import os
 import json as json_lib
 import httpx
+import re
+
 
 LLM_API_URL = os.getenv("LLM_API_URL", "")
+
 
 def _call_llm(prompt: str) -> str:
     if LLM_API_URL:
@@ -17,30 +20,45 @@ def _call_llm(prompt: str) -> str:
     # Fallback dummy response for local dev without LLM
     return f"[LLM response for prompt of length {len(prompt)}]"
 
-def _parse_json_from_llm(text: str, fallback: Dict[str, Any]) -> Dict[str, Any]:
+
+def _parse_json_from_llm(text: str, fallback: Dict[str, Any] | None) -> Dict[str, Any] | None:
+    if text is None:
+        return None
     try:
         return json_lib.loads(text)
     except Exception:
         # If LLM output is not valid JSON (e.g., dummy text), use fallback
         return fallback
 
+
 def build_tldr_prompt(game: Dict[str, Any], text: str, custom_instructions: str | None) -> str:
     focus = ", ".join(game["focus_areas"])
     base = (
         f"You are an expert for {game['name']}. "
-        f"Summarize the following patch notes into 5–8 bullet points focusing on changes that affect {focus}. "
+        f"Summarize the following patch notes into **5–8 concise bullet points** focusing on the most impactful changes for {focus}. "
         f"Use this guidance: {game['llm_instructions']}. "
-        "Output only bullets, one per line, no extra text.\n\nPatch notes:\n"
+        "Rules:\n"
+        "- Choose only the single most important changes for players (champion balance, key items/runes, major systems).\n"
+        "- If a change is minor or only affects a niche case, skip it unless it’s one of the top ~8 changes overall.\n"
+        "- Group minor bug fixes into a single bullet like 'Various bug fixes for champions and items' unless one is especially notable.\n"
+        "- Describe each change in plain language (e.g. 'early game weaker, late game stronger', 'cooldown reduced slightly', 'damage increased at later ranks').\n"
+        "- NEVER output exact numbers, ranges, or stat blocks like '50/60/70/80/90' or '10 → 8'.\n"
+        "- Do NOT include meta commentary like 'current meta', 'more competitive', 'stronger in competitive play', or 'more frustrating to play against'.\n"
+        "- Keep each bullet to one or two short sentences. Be brief and direct.\n"
+        "- Output only the bullets, one per line. Do NOT add any intro sentence, headers, or extra sections.\n"
+        "\nPatch notes:\n"
     )
     if custom_instructions:
         base += f"Additional instructions: {custom_instructions}\n\n"
     return base + text
+
 
 def build_categorize_prompt(game: Dict[str, Any], text: str) -> str:
     return (
         "Classify each change into: buffs, nerfs, bug fixes, new content, quality-of-life. "
         "Return ONLY valid JSON in this shape: { \"buffs\": [], \"nerfs\": [], \"bug_fixes\": [], \"new_content\": [], \"qol\": [] }.\n\nPatch notes:\n"
     ) + text
+
 
 def build_recheck_prompt(game: Dict[str, Any], text: str) -> str:
     focus = ", ".join(game["focus_areas"])
@@ -49,14 +67,27 @@ def build_recheck_prompt(game: Dict[str, Any], text: str) -> str:
         f"Include {focus}. Return ONLY valid JSON: {{ \"things_to_recheck\": [], \"meta_impact_notes\": [] }}.\n\nPatch notes:\n"
     ) + text
 
+
 def build_impact_score_prompt(game: Dict[str, Any], text: str) -> str:
     return (
         f"Rate this patch's overall impact on the {game['name']} meta from 1 (minor fixes) to 5 (major meta shift). "
         "Return ONLY valid JSON: { \"score\": <int>, \"reason\": \"<string>\" }.\n\nPatch notes:\n"
     ) + text
 
+
 def summarize_patch(game_id: str, text: str, custom_instructions: str | None):
     from .games import get_game_profile
+
+    # Quick guard: if input looks like a test or not real patch notes
+    if not text or len(text.strip()) < 80:
+        return {
+            "tl_dr": ["This doesn't look like real patch notes. Please paste the full patch text from the official source."],
+            "categorized": {"buffs": [], "nerfs": [], "bug_fixes": [], "new_content": [], "qol": []},
+            "things_to_recheck": [],
+            "meta_impact_notes": [],
+            "impact_score": 1,
+            "impact_reason": "Input too short or not recognizably patch notes.",
+        }
 
     game = get_game_profile(game_id)
     if not game:
@@ -88,10 +119,23 @@ def summarize_patch(game_id: str, text: str, custom_instructions: str | None):
     # Impact score
     score_prompt = build_impact_score_prompt(game, text)
     score_raw = _call_llm(score_prompt)
+
+    # Try to parse as JSON first
     score_data = _parse_json_from_llm(
         score_raw,
-        fallback={"score": 3, "reason": "No LLM configured; using default score."},
+        fallback=None,
     )
+
+    if score_data is None:
+        # Fallback: extract score and reason from plain text
+        score_match = re.search(r"\bscore\s*[:\-=]\s*(\d)", score_raw, re.IGNORECASE)
+        reason_match = re.search(r"reason\s*[:\-=]\s*(.+?)(?:\n|$)", score_raw, re.IGNORECASE)
+
+        score = int(score_match.group(1)) if score_match else 3
+        reason = reason_match.group(1).strip() if reason_match else "Impact score based on patch changes."
+
+        score_data = {"score": score, "reason": reason}
+
     impact_score = int(score_data.get("score", 3))
     impact_reason = str(score_data.get("reason", ""))
 

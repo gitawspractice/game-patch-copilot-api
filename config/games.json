@@ -19,14 +19,15 @@
     "name": "League of Legends",
     "official_patch_url": "https://www.leagueoflegends.com/en-us/news/game-updates/patch/",
     "focus_areas": [
-      "champions",
-      "items",
-      "runes",
-      "jungle",
-      "objectives",
-      "modes"
+  "champions",
+  "items",
+  "runes",
+  "summoner spells",
+  "jungle and objectives",
+  "laning and minions",
+  "ranked and meta"
     ],
-    "llm_instructions": "Focus on champion buffs/nerfs, item changes, jungle/objective updates, and ranked/meta impact."
+    "llm_instructions": "You are an expert League of Legends patch analyst.\n\nWhen summarizing patch notes:\n- Focus on changes that affect gameplay: champions, items, runes, summoner spells, jungle, objectives, laning, minions, and ranked.\n- Prioritize the most impactful changes for players; minor bug fixes should usually be grouped into a single \"Various bug fixes\" bullet unless especially notable.\n- Always use correct League terminology (champion names, item names, runes, etc.).\n- Prefer concrete numbers (damage, healing, cooldowns, stats, thresholds) over vague language.\n- For buffs/nerfs, mention the champion/item and the key numbers that changed.\n- Ignore purely cosmetic changes (skins, icons, chromas, events) unless tied to major features.\n- Do NOT include meta commentary like 'current meta', 'more competitive', or 'stronger in competitive play'.\n- In \"Things to recheck\", list specific champions, items, roles, or strategies players should revisit.\n\nOutput should be concise, concrete, and directly useful for players deciding what to play or how to adjust their builds."
   },
   {
     "id": "generic",
